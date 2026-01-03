@@ -1,6 +1,18 @@
 const express = require('express');
+const client = require('prom-client'); // Prometheus client
+
 const app = express();
 const PORT = 3001;
+
+// Coleta métricas padrão do Node.js
+const collectDefaultMetrics = client.collectDefaultMetrics;
+collectDefaultMetrics();
+
+// Endpoint para o Prometheus coletar as métricas
+app.get('/metrics', async (req, res) => {
+    res.set('Content-Type', client.register.contentType);
+    res.end(await client.register.metrics());
+});
 
 app.use(express.json());
 
@@ -8,7 +20,7 @@ app.post('/payments', (req, res) => {
     const { orderId, amount } = req.body;
 
     // Simula Latência Aleatória (0ms a 3000ms)
-    const latency = Math.floor(Math.random() * 3000);
+    const latency = Math.floor(Math.random() * 30_000);
 
     setTimeout(() => {
         // Simula Falha Aleatória (50% de chance)

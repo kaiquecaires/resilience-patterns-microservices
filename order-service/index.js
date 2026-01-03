@@ -2,10 +2,42 @@ const express = require('express');
 const axios = require('axios');
 const axiosRetry = require('axios-retry').default;
 const CircuitBreaker = require('opossum');
+const client = require('prom-client'); // Prometheus client
 
 const app = express();
 const PORT = 3000;
-const PAYMENT_SERVICE_URL = 'http://localhost:3001/payments';
+const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL || 'http://localhost:3001/payments';
+
+// Coleta métricas padrão do Node.js (CPU, Memória, etc.)
+const collectDefaultMetrics = client.collectDefaultMetrics;
+collectDefaultMetrics();
+
+// Custom Metric: HTTP Request Duration
+const httpRequestDurationMicroseconds = new client.Histogram({
+    name: 'http_request_duration_seconds',
+    help: 'Duration of HTTP requests in seconds',
+    labelNames: ['method', 'route', 'code'],
+    buckets: [0.1, 0.5, 1, 2, 5] // buckets for response time from 0.1s to 5s
+});
+
+// Middleware to measure request duration
+app.use((req, res, next) => {
+    const end = httpRequestDurationMicroseconds.startTimer();
+    res.on('finish', () => {
+        end({
+            method: req.method,
+            route: req.route ? req.route.path : req.path,
+            code: res.statusCode
+        });
+    });
+    next();
+});
+
+// Endpoint para o Prometheus coletar as métricas
+app.get('/metrics', async (req, res) => {
+    res.set('Content-Type', client.register.contentType);
+    res.end(await client.register.metrics());
+});
 
 app.use(express.json());
 
@@ -24,7 +56,7 @@ axiosRetry(axios, {
 // 2. PADRÃO DE TEMPO LIMITE (TIMEOUT) (configurado na chamada axios)
 async function makePaymentRequest(payload) {
     const response = await axios.post(PAYMENT_SERVICE_URL, payload, {
-        timeout: 2000 // 2 seconds timeout
+        timeout: 200 // 200 Milisegundos
     });
     return response.data;
 }
