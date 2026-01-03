@@ -3,9 +3,10 @@ import { sleep, check } from 'k6';
 
 export const options = {
     stages: [
-        { duration: '30s', target: 50 }, // Sobe para 50 VUs em 30s
-        { duration: '1m', target: 50 },  // Mantém 50 VUs por 1m
-        { duration: '30s', target: 0 },  // Desce para 0 VUs em 30s
+        { duration: '30s', target: 20 },  // Aquecimento
+        { duration: '1m', target: 50 },   // Carga Normal (Baseline)
+        { duration: '2m', target: 150 },  // Rampa de Estresse (Onde a mágica acontece)
+        { duration: '30s', target: 0 },   // Resfriamento
     ],
     thresholds: {
         http_req_failed: ['rate<0.05'], // Erros abaixo de 5%

@@ -13,6 +13,11 @@ services:
       - "9090:9090"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   grafana:
     image: grafana/grafana:latest
@@ -21,18 +26,29 @@ services:
       - "3005:3000"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
       - prometheus
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   payment-service:
     build: ./payment-service
     container_name: payment-service
     ports:
       - "3001:3001"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   order-service:
     build: ./order-service
@@ -43,6 +59,11 @@ services:
       - PAYMENT_SERVICE_URL=http://payment-service:3001/payments
     depends_on:
       - payment-service
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   order-service-fragile:
     build: ./order-service-fragile
@@ -53,6 +74,11 @@ services:
       - PAYMENT_SERVICE_URL=http://payment-service:3001/payments
     depends_on:
       - payment-service
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   k6:
     image: grafana/k6:latest
@@ -63,3 +89,11 @@ services:
       - RESILIENT_SERVICE_URL=http://order-service:3000/orders
       - FRAGILE_SERVICE_URL=http://order-service-fragile:3002/orders
     command: ["run", "-o", "experimental-prometheus-rw", "/load-tests/k6-script.js"]
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+volumes:
+  grafana-data:
