@@ -1,0 +1,13 @@
+{
+  "name": "order-service-fragile",
+  "version": "1.0.0",
+  "description": "Serviço de pedidos sem padrões de resiliência para demonstração de falhas",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "express": "^4.18.2"
+  }
+}
