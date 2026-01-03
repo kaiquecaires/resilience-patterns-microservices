@@ -1,2 +1,2 @@
 const CircuitBreaker = require('opossum');
-console.log('Opossum loaded');
+console.log('Opossum carregado');

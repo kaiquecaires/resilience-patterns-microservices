@@ -9,19 +9,19 @@ const PAYMENT_SERVICE_URL = 'http://localhost:3001/payments';
 
 app.use(express.json());
 
-// 1. RETRY PATTERN
-// Configures axios to retry 3 times if the request fails (network error or 5xx status)
+// 1. PADRÃO DE TENTATIVA (RETRY)
+// Configura o axios para tentar novamente 3 vezes se a requisição falhar (erro de rede ou status 5xx)
 axiosRetry(axios, {
     retries: 3,
-    retryDelay: axiosRetry.exponentialDelay, // Exponential backoff: 2^retryCount * 100ms
+    retryDelay: axiosRetry.exponentialDelay, // Backoff exponencial: 2^retryCount * 100ms
     retryCondition: (error) => {
-        // Retry on network errors or 5xx status codes
+        // Tenta novamente em erros de rede ou códigos de status 5xx
         return axiosRetry.isNetworkOrIdempotentRequestError(error) || error.response?.status >= 500;
     }
 });
 
-// Function to make the HTTP request
-// 2. TIMEOUT PATTERN (configured in axios call)
+// Função para fazer a requisição HTTP
+// 2. PADRÃO DE TEMPO LIMITE (TIMEOUT) (configurado na chamada axios)
 async function makePaymentRequest(payload) {
     const response = await axios.post(PAYMENT_SERVICE_URL, payload, {
         timeout: 2000 // 2 seconds timeout
@@ -29,50 +29,50 @@ async function makePaymentRequest(payload) {
     return response.data;
 }
 
-// 3. CIRCUIT BREAKER PATTERN
-// Options for Opossum
+// 3. PADRÃO DE DISJUNTOR (CIRCUIT BREAKER)
+// Opções para o Opossum
 const breakerOptions = {
-    timeout: 3000, // If function takes longer than 3s, trigger failure (failsafe for axios timeout)
-    errorThresholdPercentage: 50, // If 50% of requests fail, open circuit
-    resetTimeout: 10000 // Wait 10s before trying again (Half-Open state)
+    timeout: 3000, // Se a função demorar mais de 3s, aciona falha (segurança para o timeout do axios)
+    errorThresholdPercentage: 50, // Se 50% das requisições falharem, abre o circuito
+    resetTimeout: 10000 // Aguarda 10s antes de tentar novamente (estado Semi-Aberto)
 };
 
 const breaker = new CircuitBreaker(makePaymentRequest, breakerOptions);
 
-// Fallback function when circuit is open or request fails
+// Função de fallback quando o circuito está aberto ou a requisição falha
 breaker.fallback(() => {
     return {
         status: 'pending',
-        message: 'Payment service is currently unavailable. Your order has been queued.'
+        message: 'O serviço de pagamentos está indisponível no momento. Seu pedido foi enfileirado.'
     };
 });
 
-// Event listeners for logging
-breaker.on('open', () => console.log('🔴 Circuit Breaker is OPEN'));
-breaker.on('halfOpen', () => console.log('🟡 Circuit Breaker is HALF-OPEN'));
-breaker.on('close', () => console.log('🟢 Circuit Breaker is CLOSED'));
+// Listeners de eventos para logs
+breaker.on('open', () => console.log('🔴 Circuit Breaker está ABERTO'));
+breaker.on('halfOpen', () => console.log('🟡 Circuit Breaker está SEMI-ABERTO'));
+breaker.on('close', () => console.log('🟢 Circuit Breaker está FECHADO'));
 
 app.post('/orders', async (req, res) => {
     const { orderId, amount } = req.body;
-    console.log(`[Order] Processing order ${orderId}...`);
+    console.log(`[Pedido] Processando pedido ${orderId}...`);
 
     try {
-        // Fire the circuit breaker
+        // Dispara o circuit breaker
         const result = await breaker.fire({ orderId, amount });
 
         if (result.status === 'pending') {
-            // Fallback response
+            // Resposta de fallback
             res.status(202).json(result);
         } else {
-            // Success response
+            // Resposta de sucesso
             res.status(200).json(result);
         }
     } catch (error) {
-        console.error(`[Order] Error processing order: ${error.message}`);
-        res.status(500).json({ error: 'Internal Server Error' });
+        console.error(`[Pedido] Erro ao processar pedido: ${error.message}`);
+        res.status(500).json({ error: 'Erro Interno do Servidor' });
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`Order Service running on port ${PORT}`);
+    console.log(`Serviço de Pedidos rodando na porta ${PORT}`);
 });
