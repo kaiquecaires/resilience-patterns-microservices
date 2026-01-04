@@ -4,6 +4,8 @@ const client = require('prom-client'); // Prometheus client
 const app = express();
 const PORT = 3001;
 
+const startTime = Date.now();
+
 // Coleta métricas padrão do Node.js
 const collectDefaultMetrics = client.collectDefaultMetrics;
 collectDefaultMetrics();
@@ -19,26 +21,47 @@ app.use(express.json());
 app.post('/payments', (req, res) => {
     const { orderId, amount } = req.body;
 
-    // Simula Latência Aleatória (0ms a 3000ms)
-    const latency = Math.floor(Math.random() * 30_000);
+    const elapsedTime = Date.now() - startTime;
+    const cycleTime = elapsedTime % (12 * 60 * 1000); // 12 minutes cycle in ms
+    const minutesInCycle = cycleTime / 60000;
 
-    setTimeout(() => {
-        // Simula Falha Aleatória (50% de chance)
-        const shouldFail = Math.random() < 0.5;
+    // 0-3m: Success
+    // 3-6m: Latency 30s
+    // 6-9m: Error
+    // 9-12m: Success
 
-        if (shouldFail) {
-            console.log(`[Pagamento] Falha ao processar pedido: ${orderId} (Latência: ${latency}ms)`);
-            return res.status(500).json({ error: 'Falha no processamento do pagamento devido a erro interno' });
-        }
-
-        console.log(`[Pagamento] Pedido processado com sucesso: ${orderId} por R$${amount} (Latência: ${latency}ms)`);
-        res.status(200).json({
+    if (minutesInCycle < 3) {
+        // Phase 1: Success (0-3m)
+        console.log(`[Pagamento] [Phase 1: Success] Pedido processado (${minutesInCycle.toFixed(2)}m): ${orderId}`);
+        return res.status(200).json({
             status: 'confirmed',
             transactionId: `txn_${Date.now()}`,
             orderId
         });
-
-    }, latency);
+    } else if (minutesInCycle < 6) {
+        // Phase 2: Latency 30s (3-6m)
+        console.log(`[Pagamento] [Phase 2: 30s Delay] Aguardando 30s... (${minutesInCycle.toFixed(2)}m): ${orderId}`);
+        setTimeout(() => {
+            console.log(`[Pagamento] [Phase 2: 30s Delay] Respondendo sucesso após delay (${minutesInCycle.toFixed(2)}m): ${orderId}`);
+            return res.status(200).json({
+                status: 'confirmed',
+                transactionId: `txn_${Date.now()}`,
+                orderId
+            });
+        }, 30000);
+    } else if (minutesInCycle < 9) {
+        // Phase 3: Error (6-9m)
+        console.log(`[Pagamento] [Phase 3: Error] Falha intencional (${minutesInCycle.toFixed(2)}m): ${orderId}`);
+        return res.status(500).json({ error: 'Falha intencional no processamento do pagamento' });
+    } else {
+        // Phase 4: Success (9-12m)
+        console.log(`[Pagamento] [Phase 4: Success] Pedido processado (${minutesInCycle.toFixed(2)}m): ${orderId}`);
+        return res.status(200).json({
+            status: 'confirmed',
+            transactionId: `txn_${Date.now()}`,
+            orderId
+        });
+    }
 });
 
 app.listen(PORT, () => {
