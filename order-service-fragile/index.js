@@ -18,10 +18,20 @@ const httpRequestDurationMicroseconds = new client.Histogram({
     buckets: [0.1, 0.5, 1, 2, 5] // buckets for response time from 0.1s to 5s
 });
 
+// Custom Metric: In-flight Requests
+const inFlightRequests = new client.Gauge({
+    name: 'http_requests_in_flight',
+    help: 'Number of requests currently being processed',
+    labelNames: ['method', 'route']
+});
+
 // Middleware to measure request duration
 app.use((req, res, next) => {
     const end = httpRequestDurationMicroseconds.startTimer();
+    inFlightRequests.inc({ method: req.method, route: req.route ? req.route.path : req.path });
+
     res.on('finish', () => {
+        inFlightRequests.dec({ method: req.method, route: req.route ? req.route.path : req.path });
         end({
             method: req.method,
             route: req.route ? req.route.path : req.path,

@@ -466,6 +466,122 @@
             ],
             "title": "Memory Usage (Heap Used)",
             "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-1"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "color": "green",
+                                    "index": 0,
+                                    "text": "Closed"
+                                },
+                                "1": {
+                                    "color": "red",
+                                    "index": 1,
+                                    "text": "Open"
+                                },
+                                "2": {
+                                    "color": "yellow",
+                                    "index": 2,
+                                    "text": "Half-Open"
+                                }
+                            }
+                        }
+                    ],
+                    "min": 0,
+                    "max": 2
+                }
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 16
+            },
+            "id": 6,
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus-1"
+                    },
+                    "expr": "circuit_breaker_state",
+                    "legendFormat": "{{name}} State",
+                    "refId": "A"
+                }
+            ],
+            "title": "Circuit Breaker State",
+            "type": "state-timeline"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-1"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 24
+            },
+            "id": 7,
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus-1"
+                    },
+                    "expr": "sum(http_requests_in_flight) by (job)",
+                    "legendFormat": "{{job}}",
+                    "refId": "A"
+                }
+            ],
+            "title": "In-flight Requests (Concurrency)",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus-1"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 24
+            },
+            "id": 8,
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus-1"
+                    },
+                    "expr": "rate(circuit_breaker_fallback_total[1m])",
+                    "legendFormat": "{{name}} Fallbacks/sec",
+                    "refId": "A"
+                }
+            ],
+            "title": "Fallback Rate",
+            "type": "timeseries"
         }
     ],
     "refresh": "5s",

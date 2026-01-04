@@ -20,10 +20,41 @@ const httpRequestDurationMicroseconds = new client.Histogram({
     buckets: [0.1, 0.5, 1, 2, 5] // buckets for response time from 0.1s to 5s
 });
 
+// Custom Metric: Circuit Breaker State
+const circuitBreakerState = new client.Gauge({
+    name: 'circuit_breaker_state',
+    help: 'State of the Circuit Breaker (0=Closed, 1=Open, 2=Half-Open)',
+    labelNames: ['name']
+});
+
+// Custom Metric: Fallback executions
+const circuitBreakerFallbackTotal = new client.Counter({
+    name: 'circuit_breaker_fallback_total',
+    help: 'Total number of fallback executions',
+    labelNames: ['name']
+});
+
+// Custom Metric: Circuit Breaker Operations
+const circuitBreakerOpsTotal = new client.Counter({
+    name: 'circuit_breaker_ops_total',
+    help: 'Total number of circuit breaker operations',
+    labelNames: ['name', 'result'] // result: success, failure, timeout, reject
+});
+
+// Custom Metric: In-flight Requests
+const inFlightRequests = new client.Gauge({
+    name: 'http_requests_in_flight',
+    help: 'Number of requests currently being processed',
+    labelNames: ['method', 'route']
+});
+
 // Middleware to measure request duration
 app.use((req, res, next) => {
     const end = httpRequestDurationMicroseconds.startTimer();
+    inFlightRequests.inc({ method: req.method, route: req.route ? req.route.path : req.path });
+
     res.on('finish', () => {
+        inFlightRequests.dec({ method: req.method, route: req.route ? req.route.path : req.path });
         end({
             method: req.method,
             route: req.route ? req.route.path : req.path,
@@ -79,10 +110,25 @@ breaker.fallback(() => {
     };
 });
 
-// Listeners de eventos para logs
-breaker.on('open', () => console.log('🔴 Circuit Breaker está ABERTO'));
-breaker.on('halfOpen', () => console.log('🟡 Circuit Breaker está SEMI-ABERTO'));
-breaker.on('close', () => console.log('🟢 Circuit Breaker está FECHADO'));
+// Monitoramento dos eventos do Circuit Breaker para métricas
+breaker.on('fallback', () => circuitBreakerFallbackTotal.inc({ name: 'payment-service' }));
+breaker.on('success', () => circuitBreakerOpsTotal.inc({ name: 'payment-service', result: 'success' }));
+breaker.on('failure', () => circuitBreakerOpsTotal.inc({ name: 'payment-service', result: 'failure' }));
+breaker.on('timeout', () => circuitBreakerOpsTotal.inc({ name: 'payment-service', result: 'timeout' }));
+breaker.on('reject', () => circuitBreakerOpsTotal.inc({ name: 'payment-service', result: 'reject' }));
+
+breaker.on('open', () => {
+    console.log('🔴 Circuit Breaker está ABERTO');
+    circuitBreakerState.set({ name: 'payment-service' }, 1);
+});
+breaker.on('halfOpen', () => {
+    console.log('🟡 Circuit Breaker está SEMI-ABERTO');
+    circuitBreakerState.set({ name: 'payment-service' }, 2);
+});
+breaker.on('close', () => {
+    console.log('🟢 Circuit Breaker está FECHADO');
+    circuitBreakerState.set({ name: 'payment-service' }, 0);
+});
 
 app.post('/orders', async (req, res) => {
     const { orderId, amount } = req.body;
