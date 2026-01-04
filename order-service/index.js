@@ -97,10 +97,14 @@ async function makePaymentRequest(payload) {
 const breakerOptions = {
     timeout: 3000, // Se a função demorar mais de 3s, aciona falha (segurança para o timeout do axios)
     errorThresholdPercentage: 50, // Se 50% das requisições falharem, abre o circuito
-    resetTimeout: 10000 // Aguarda 10s antes de tentar novamente (estado Semi-Aberto)
+    resetTimeout: 10000, // Aguarda 10s antes de tentar novamente (estado Semi-Aberto)
+    volumeThreshold: 5 // Minímo de 5 requisições para considerar a abertura do circuito
 };
 
 const breaker = new CircuitBreaker(makePaymentRequest, breakerOptions);
+
+// Inicializa o estado do Circuit Breaker como FECHADO (0)
+circuitBreakerState.set({ name: 'payment-service' }, 0);
 
 // Função de fallback quando o circuito está aberto ou a requisição falha
 breaker.fallback(() => {
