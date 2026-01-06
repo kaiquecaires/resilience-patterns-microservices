@@ -8,11 +8,11 @@ O ambiente é composto por microsserviços Node.js containerizados, monitorados 
 
 ```mermaid
 graph TD
-    User((Usuário / k6)) -->|Requisições HTTP| OS[Order Service<br/>(Resiliente)]
-    User -->|Requisições HTTP| OSF[Order Service Fragile<br/>(Sem Resiliência)]
+    User(("Usuário / k6")) -->|Requisições HTTP| OS["Order Service<br/>(Resiliente)"]
+    User -->|Requisições HTTP| OSF["Order Service Fragile<br/>(Sem Resiliência)"]
     
     subgraph "Ambiente Controlado"
-        OS -->|Com Padrões: Retry, Timeout,<br/>Circuit Breaker| PS[Payment Service<br/>(Instável)]
+        OS -->|"Com Padrões: Retry, Timeout,<br/>Circuit Breaker"| PS["Payment Service<br/>(Instável)"]
         OSF -->|Chamada Direta| PS
     end
     
